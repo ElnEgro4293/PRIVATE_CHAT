@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>CHAT PRIVADO</title>
+<style>
+  /* Estilos generales */
+  :root{--accent:#1db954;--muted:#999;}
+  html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Arial;color:#fff;background:#000}
+  .center{display:flex;align-items:center;justify-content:center;height:100%}
+  .card{width:920px;max-width:95%;background:linear-gradient(180deg,#0b0b0b, #111);border:1px solid rgba(255,255,255,0.04);padding:22px;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,0.6)}
+  .logo{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+  .logo svg{width:54px;height:54px}
+  h1{margin:0;font-size:20px;letter-spacing:1px}
+  .sub{color:var(--muted);font-size:13px;margin-top:4px}
+  /* Login */
+  .login{display:grid;gap:10px;padding:18px;background:linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:8px;margin-top:12px}
+  label{font-size:13px;color:#ddd}
+  input[type="text"],input[type="password"]{padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:#fff}
+  button{padding:10px;border-radius:8px;border:0;background:var(--accent);color:#000;font-weight:600;cursor:pointer}
+  .mutebtn{background:transparent;border:1px solid rgba(255,255,255,0.06);color:#ddd}
+  /* Chat layout */
+  .chat-wrapper{display:flex;flex-direction:column;gap:12px}
+  .topbar{display:flex;justify-content:space-between;align-items:center}
+  .role{font-weight:700}
+  .sdp-area{display:flex;gap:8px;align-items:center}
+  textarea{width:100%;min-height:84px;padding:10px;border-radius:8px;background:#080808;border:1px solid rgba(255,255,255,0.04);color:#fff}
+  .hrow{display:flex;gap:8px}
+  /* planilla de chats: dos columnas */
+  .grid-chats{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px}
+  .panel-chat{background:#060606;border:1px solid rgba(255,255,255,0.03);padding:10px;border-radius:8px;min-height:300px;display:flex;flex-direction:column}
+  .panel-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .messages{flex:1;overflow:auto;padding:6px;border-radius:6px;background:linear-gradient(180deg,#050505,#0a0a0a)}
+  .msg{margin:6px 0;padding:8px;border-radius:8px;background:rgba(255,255,255,0.03);font-size:14px}
+  .msg.me{background:rgba(29,185,84,0.12);align-self:flex-end}
+  .msg .from{font-weight:700;font-size:12px;color:var(--muted);display:block;margin-bottom:4px}
+  .send-row{display:flex;gap:8px;margin-top:8px}
+  input.sendbox{flex:1;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:#fff}
+  .small{font-size:12px;color:var(--muted)}
+  .center-note{display:flex;gap:8px;align-items:center;justify-content:center;color:var(--muted);padding:8px}
+  /* responsive */
+  @media (max-width:820px){.grid-chats{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <div class="center">
+    <div class="card" id="app">
+      <!-- HEADER / LOGO -->
+      <div class="logo">
+        <!-- simple logo SVG -->
+        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+          <circle cx="50" cy="50" r="48" fill="#0f0f0f" stroke="#1db954" stroke-width="3"/>
+          <path d="M35 55 L45 40 L60 65" fill="none" stroke="#1db954" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div>
+          <h1>CHAT PRIVADO</h1>
+          <div class="sub">Acceso seguro — introduce credenciales</div>
+        </div>
+      </div>
+
+      <!-- LOGIN VIEW -->
+      <div id="loginView" class="login">
+        <label>Usuario</label>
+        <input id="username" type="text" placeholder="ej: wilson" value="">
+        <label>Contraseña</label>
+        <input id="password" type="password" placeholder="4293">
+        <div style="display:flex;gap:8px">
+          <button id="btnLogin">Ingresar</button>
+          <button id="btnDemo" class="mutebtn">Autocompletar (wilson)</button>
+        </div>
+        <div class="small">Credenciales: <strong>username: wilson</strong>  /  <strong>password: 4293</strong></div>
+      </div>
+
+      <!-- CHAT VIEW (oculto hasta login) -->
+      <div id="chatView" class="chat-wrapper" style="display:none">
+        <div class="topbar">
+          <div>
+            <div class="role" id="roleLabel">Rol: —</div>
+            <div class="small">Conecta con la otra persona mediante intercambio manual de SDP</div>
+          </div>
+          <div>
+            <button id="logout" class="mutebtn">Cerrar sesión</button>
+          </div>
+        </div>
+
+        <!-- Señalización manual / info -->
+        <div class="sdp-area">
+          <div style="flex:1">
+            <div class="small">1) Crear oferta (si eres quien inicia), copiar y enviar a la otra persona.</div>
+            <div class="hrow">
+              <button id="createOffer">Crear oferta</button>
+              <button id="acceptOffer" class="mutebtn">Indicaciones (aceptar)</button>
+              <button id="applySdp" class="mutebtn">Aplicar SDP pegado</button>
+              <button id="copyLocal" class="mutebtn">Copiar salida</button>
+            </div>
+          </div>
+        </div>
+
+        <textarea id="sdpm" placeholder="Aquí pegarás la oferta o la respuesta (SDP) para intercambiar"></textarea>
+
+        <!-- Planilla de 2 chats -->
+        <div class="grid-chats">
+          <div class="panel-chat" id="panelAgent">
+            <div class="panel-header">
+              <div><strong>AGENTE 007</strong></div>
+              <div class="small">Mensajes enviados por AGENTE 007</div>
+            </div>
+            <div class="messages" id="msgsAgent"></div>
+            <div class="send-row">
+              <input id="inputAgent" class="sendbox" placeholder="Mensaje como AGENTE 007">
+              <button id="sendAgent" class="mutebtn">Enviar (solo local)</button>
+            </div>
+          </div>
+
+          <div class="panel-chat" id="panelGuest">
+            <div class="panel-header">
+              <div><strong>INVITADO</strong></div>
+              <div class="small">Mensajes enviados por INVITADO</div>
+            </div>
+            <div class="messages" id="msgsGuest"></div>
+            <div class="send-row">
+              <input id="inputGuest" class="sendbox" placeholder="Mensaje como INVITADO">
+              <button id="sendGuest" class="mutebtn">Enviar (solo local)</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Controls for real send via DataChannel -->
+        <div style="display:flex;gap:8px;margin-top:10px;align-items:center">
+          <input id="commonSend" class="sendbox" placeholder="Escribe mensaje para enviar por el canal (tu rol actual)">
+          <button id="sendReal">Enviar P2P (cifrado)</button>
+          <div class="small" style="margin-left:8px">Estado: <span id="connStat">desconectado</span></div>
+        </div>
+
+        <div class="center-note">Nota: Usa los botones Crear oferta / Aplicar SDP para establecer el canal P2P. Intercambio manual de texto (SDP) entre ambos.</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+/*
+  private_chat.html
+  - Login con credenciales (wilson / 4293 -> AGENTE 007; otro user + 4293 -> INVITADO)
+  - Chat con dos paneles: AGENTE 007 (izq) e INVITADO (der)
+  - WebRTC DataChannel manual (copy/paste SDP). Mensajes cifrados con clave derivada de la contraseña (PBKDF2 + AES-GCM).
+  - Guarda estado de sesión en sessionStorage temporalmente.
+*/
+
+const CORRECT_PASSWORD = "4293";
+const AGENTE_USERNAME = "wilson";
+
+const loginView = document.getElementById('loginView');
+const chatView = document.getElementById('chatView');
+const roleLabel = document.getElementById('roleLabel');
+const usernameInput = document.getElementById('username');
+const passwordInput = document.getElementById('password');
+const btnLogin = document.getElementById('btnLogin');
+const btnDemo = document.getElementById('btnDemo');
+const logoutBtn = document.getElementById('logout');
+
+btnDemo.addEventListener('click', ()=>{ usernameInput.value = 'wilson'; passwordInput.value = '4293'; });
+
+btnLogin.addEventListener('click', async ()=>{
+  const u = (usernameInput.value || '').trim();
+  const p = (passwordInput.value || '').trim();
+  if(!u || !p){ alert('Rellena usuario y contraseña'); return; }
+  if(p !== CORRECT_PASSWORD){ alert('Contraseña incorrecta'); return; }
+  // asignar rol
+  let role;
+  let displayName;
+  if(u.toLowerCase() === AGENTE_USERNAME.toLowerCase()){
+    role = 'AGENTE';
+    displayName = 'AGENTE 007';
+  } else {
+    role = 'INVITADO';
+    displayName = 'INVITADO';
+  }
+  // guardar sesión breve
+  sessionStorage.setItem('pc_user', u);
+  sessionStorage.setItem('pc_role', role);
+  sessionStorage.setItem('pc_display', displayName);
+  sessionStorage.setItem('pc_pwd', p); // necesario para derivar clave; es local only
+  showChatFor(displayName, role);
+});
+
+logoutBtn.addEventListener('click', ()=>{
+  sessionStorage.clear();
+  location.reload();
+});
+
+function showChatFor(displayName, role){
+  loginView.style.display = 'none';
+  chatView.style.display = 'block';
+  roleLabel.textContent = `Rol: ${displayName}`;
+  // scroll to top
+  window.scrollTo(0,0);
+  // store local state
+  myDisplayName = displayName;
+  myRole = role;
+}
+
+/* --- Crypto helpers --- */
+const encoder = new TextEncoder(), decoder = new TextDecoder();
+
+async function deriveKey(passphrase, saltStr='private-room'){
+  const pass = encoder.encode(passphrase);
+  const salt = encoder.encode(saltStr);
+  const baseKey = await crypto.subtle.importKey('raw', pass, 'PBKDF2', false, ['deriveKey']);
+  const key = await crypto.subtle.deriveKey(
+    {name:'PBKDF2', salt, iterations: 120000, hash:'SHA-256'},
+    baseKey,
+    {name:'AES-GCM', length:256},
+    false,
+    ['encrypt','decrypt']
+  );
+  return key;
+}
+
+async function encryptMessage(key, text){
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({name:'AES-GCM', iv}, key, encoder.encode(text));
+  const combined = new Uint8Array(iv.byteLength + ct.byteLength);
+  combined.set(iv,0);
+  combined.set(new Uint8Array(ct), iv.byteLength);
+  return btoa(String.fromCharCode(...combined));
+}
+
+async function decryptMessage(key, b64){
+  try{
+    const raw = Uint8Array.from(atob(b64), c=>c.charCodeAt(0));
+    const iv = raw.slice(0,12);
+    const ct = raw.slice(12);
+    const pt = await crypto.subtle.decrypt({name:'AES-GCM', iv}, key, ct);
+    return decoder.decode(pt);
+  }catch(e){
+    return null;
+  }
+}
+
+/* --- UI helpers para la planilla --- */
+function appendAgent(text, whoName){
+  const box = document.getElementById('msgsAgent');
+  const el = document.createElement('div'); el.className='msg';
+  const from = document.createElement('span'); from.className='from'; from.textContent = whoName;
+  el.appendChild(from);
+  el.appendChild(document.createTextNode(text));
+  box.appendChild(el);
+  box.scrollTop = box.scrollHeight;
+}
+function appendGuest(text, whoName){
+  const box = document.getElementById('msgsGuest');
+  const el = document.createElement('div'); el.className='msg';
+  const from = document.createElement('span'); from.className='from'; from.textContent = whoName;
+  el.appendChild(from);
+  el.appendChild(document.createTextNode(text));
+  box.appendChild(el);
+  box.scrollTop = box.scrollHeight;
+}
+
+/* Para testing local: botones "Enviar (solo local)" añaden mensaje en su columna */
+document.getElementById('sendAgent').addEventListener('click', ()=>{
+  const t = document.getElementById('inputAgent').value; if(!t) return;
+  appendAgent(t, 'AGENTE 007');
+  document.getElementById('inputAgent').value='';
+});
+document.getElementById('sendGuest').addEventListener('click', ()=>{
+  const t = document.getElementById('inputGuest').value; if(!t) return;
+  appendGuest(t, 'INVITADO');
+  document.getElementById('inputGuest').value='';
+});
+
+/* --- WebRTC P2P manual (DataChannel) --- */
+let pc = null, dc = null;
+let localSdpString = '';
+let myDisplayName = sessionStorage.getItem('pc_display') || 'AGENTE 007';
+let myRole = sessionStorage.getItem('pc_role') || 'AGENTE'; // AGENTE or INVITADO
+
+const connStat = document.getElementById('connStat');
+
+async function ensurePc(){
+  if(pc) return pc;
+  pc = new RTCPeerConnection();
+  pc.onicecandidate = (e)=>{ /* no-op: we'll copy localDescription when set */ };
+  pc.onconnectionstatechange = ()=>{ connStat.textContent = pc.connectionState || pc.iceConnectionState; };
+  pc.ondatachannel = (ev)=>{
+    dc = ev.channel;
+    setupDataChannel();
+  };
+  return pc;
+}
+
+function setupDataChannel(){
+  if(!dc) return;
+  dc.onopen = ()=>{ connStat.textContent = 'canal abierto'; };
+  dc.onclose = ()=>{ connStat.textContent = 'canal cerrado'; };
+  dc.onmessage = async (ev)=>{
+    // recibimos ciphertext con payload JSON: {from, ct}
+    try{
+      const payload = JSON.parse(ev.data);
+      const pwd = sessionStorage.getItem('pc_pwd') || CORRECT_PASSWORD;
+      const key = await deriveKey(pwd,'private-room');
+      const clear = await decryptMessage(key, payload.ct);
+      const fromName = payload.from || 'INVITADO';
+      // mostrar en la columna correspondiente
+      if(fromName.toUpperCase().includes('AGENTE')) appendAgent(clear, fromName);
+      else appendGuest(clear, fromName);
+    }catch(e){
+      console.error('err on message', e);
+    }
+  };
+}
+
+/* botones */
+document.getElementById('createOffer').addEventListener('click', async ()=>{
+  await ensurePc();
+  dc = pc.createDataChannel('chat');
+  setupDataChannel();
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  // esperar brevemente para ICE candidates (opcional)
+  setTimeout(()=> {
+    localSdpString = JSON.stringify(pc.localDescription);
+    document.getElementById('sdpm').value = localSdpString;
+  },700);
+});
+
+document.getElementById('acceptOffer').addEventListener('click', async ()=>{
+  await ensurePc();
+  alert('Pega la oferta que recibiste en el cuadro y presiona "Aplicar SDP". Luego copia la respuesta y envíasela al otro.');
+});
+
+document.getElementById('applySdp').addEventListener('click', async ()=>{
+  const text = document.getElementById('sdpm').value.trim();
+  if(!text) return alert('Pega aqui la oferta o la respuesta (SDP)');
+  const obj = JSON.parse(text);
+  await ensurePc();
+  if(obj.type === 'offer'){
+    await pc.setRemoteDescription(obj);
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    setTimeout(()=> {
+      localSdpString = JSON.stringify(pc.localDescription);
+      document.getElementById('sdpm').value = localSdpString;
+    },700);
+  } else if(obj.type === 'answer'){
+    await pc.setRemoteDescription(obj);
+  } else {
+    alert('SDP invalido');
+  }
+});
+
+document.getElementById('copyLocal').addEventListener('click', ()=>{
+  if(!localSdpString) return alert('Aun no hay salida local. Crea oferta o aplica SDP.');
+  navigator.clipboard.writeText(localSdpString).then(()=>alert('Copiado al portapapeles.'));
+});
+
+/* enviar mensaje real (cifrado) */
+document.getElementById('sendReal').addEventListener('click', async ()=>{
+  if(!dc || dc.readyState !== 'open') return alert('Canal no abierto');
+  const txt = document.getElementById('commonSend').value.trim(); if(!txt) return;
+  const pwd = sessionStorage.getItem('pc_pwd') || CORRECT_PASSWORD;
+  const key = await deriveKey(pwd,'private-room');
+  const ct = await encryptMessage(key, txt);
+  // envia JSON con quien lo envia
+  const payload = JSON.stringify({from: myDisplayName, ct});
+  dc.send(payload);
+  // mostrar localmente en la columna adecuada
+  if(myDisplayName.toUpperCase().includes('AGENTE')) appendAgent(txt, myDisplayName);
+  else appendGuest(txt, myDisplayName);
+  document.getElementById('commonSend').value='';
+});
+
+/* Si la sesión ya estaba en memoria (por recarga), abrir chat */
+window.addEventListener('load', ()=>{
+  const storedDisplay = sessionStorage.getItem('pc_display');
+  const storedRole = sessionStorage.getItem('pc_role');
+  if(storedDisplay && storedRole){
+    myDisplayName = storedDisplay;
+    myRole = storedRole;
+    showChatFor(myDisplayName, myRole);
+  }
+});
+</script>
+</body>
+</html>
